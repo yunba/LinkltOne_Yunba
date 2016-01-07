@@ -4,7 +4,7 @@
 // You can check on your device after a successful
 // connection here: https://shiftr.io/try.
 //
-// by Jo婵犵數濮甸鏍闯椤栨粌绶ら柟顖嗭拷閺嬫牠鏌ㄩ悤鍌涘 G闂傚倸鍊烽懗鍫曞磿閻㈢鐤炬繝闈涱儐閸婂爼鏌涢悙鎼妷ler
+// by Jo濠电姷鏁告慨鐢割敊閺嶎厼闂い鏍ㄧ矊缁躲倝鏌熼鍡嫹闁哄鐗犻弻銊╂偆閸屾稑顏� G闂傚倸鍊搁崐鐑芥嚄閸洖纾块柣銏㈩焾閻ょ偓绻濋棃娑卞剱闁稿﹤鐖奸弻娑㈡倷閹碱厼濡穕er
 // https://github.com/256dpi/arduino-mqtt
 
 #include "SPI.h"
@@ -13,16 +13,16 @@
 #include <MQTTClient.h>
 #include <LWiFiClient.h>
 #include <ArduinoJson.h>
-char *ssid = "yunba.io guest";
-char *pass = "123456789";
+char *ssid = "yunba.io";
+char *pass = "Hiyunba2013";
 
 char client_id[56];
 char username[56];
 char password[56];
 char device_id[56];
 
-#define WIFI_AP "yunba.io guest" // provide your WIFI_AP name
-#define WIFI_PASSWORD "123456789" //provide your WIFI password
+#define WIFI_AP "yunba.io" // provide your WIFI_AP name
+#define WIFI_PASSWORD "Hiyunba2013" //provide your WIFI password
 #define WIFI_AUTH LWIFI_WPA
 
 const int subLedPin = 10;
@@ -30,7 +30,7 @@ const int pubLedPin = 13;
 
 const char yunba_appkey[] = "563c4afef085fc471efdf803";
 const char yunba_topic[] = "linkltone";
-const char yunba_devid[] = "linkltone_board";
+const char yunba_devid[] = "linkltone_board1";
 char url[56];
 
 LWiFiClient net;
@@ -205,7 +205,9 @@ void setup() {
   setup_with_appkey_and_devid(yunba_appkey, yunba_devid/*, &info*/);
 
   get_ip_pair(url, broker_addr, &port);
-  client.begin(broker_addr, port, net);
+  client.begin("192.168.2.136", port, net);
+
+  // client.begin(broker_addr, port, net);
 
   connect();
 }
@@ -258,6 +260,7 @@ void messageReceived(String topic, String payload, char * bytes, unsigned int le
   Serial.print(payload);
   Serial.println();
 }
+
 
 
 

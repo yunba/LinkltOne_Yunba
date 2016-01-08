@@ -350,9 +350,9 @@ void setup() {
   setup_with_appkey_and_devid(yunba_appkey, yunba_devid/*, &info*/);
 
   get_ip_pair(url, broker_addr, &port);
-  client.begin("192.168.2.136", port, net);
+ // client.begin("192.168.2.136", port, net);
 
-  // client.begin(broker_addr, port, net);
+   client.begin(broker_addr, port, net);
 
   connect();
 }

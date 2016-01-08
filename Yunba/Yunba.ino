@@ -30,7 +30,7 @@ const int pubLedPin = 13;
 
 const char yunba_appkey[] = "563c4afef085fc471efdf803";
 const char yunba_topic[] = "linkltone";
-const char yunba_devid[] = "linkltone_board1";
+const char yunba_devid[] = "linkltone_board2";
 char url[56];
 
 LWiFiClient net;
@@ -176,7 +176,7 @@ bool setup_with_appkey_and_devid(const char* appkey, const char *deviceid/*, REG
 
 void set_alias(const char *alias)
 {
-   client.publish(",yali", alias);
+  client.publish(",yali", alias);
 }
 
 void publish_to_alias(const char *alias, char *message)
@@ -246,6 +246,7 @@ void loop() {
   if (millis() - lastMillis > 20000) {
     lastMillis = millis();
     client.publish(yunba_topic, "world");
+    client.publish2ToAlias("PC", "publish2");
     flash(pubLedPin);
     Serial.print("publish one message\r\n");
   }
@@ -261,6 +262,15 @@ void messageReceived(String topic, String payload, char * bytes, unsigned int le
   Serial.println();
 }
 
+void extMessageReceived(EXTED_CMD cmd, int status, String payload, unsigned int length)
+{
+  flash(subLedPin);
+  Serial.print("incoming ext message: ");
+  Serial.print(cmd);
+  Serial.print(" - ");
+  Serial.print(payload);
+  Serial.println();
+}
 
 
 

@@ -46,20 +46,24 @@ char broker_addr[56];
 uint16_t port;
 
 gpsSentenceInfoStruct g_info;
+char gmaps_buffer[50];
+
+boolean netstatus = false;
+const char *opt_json = "{\"time_to_live\":\"120\", \"qos\":\"2\"}";
 
 void getGPSData(gpsSentenceInfoStruct &g_info, char* GPS_formatted)
 {
-//  LGPS.powerOn();
+  //  LGPS.powerOn();
   boolean GPS_fix = false;
 
- // while (!GPS_fix)
- // {
-    LGPS.getData(&g_info);                                      //get the data from the GPS and store it in 'g_info'
-    Serial.println((char*)g_info.GPGGA); 
-     Serial.println((char*)g_info.GPGSV); 
-    GPS_fix = printGPGGA((char*)g_info.GPGGA,GPS_formatted);    //printGPGGA returns TRUE if the GPGGA string returned confirms a GPS fix.
- // }
- // LGPS.powerOff();
+  // while (!GPS_fix)
+  // {
+  LGPS.getData(&g_info);                                      //get the data from the GPS and store it in 'g_info'
+  //   Serial.println((char*)g_info.GPGGA);
+  //    Serial.println((char*)g_info.GPGSV);
+  GPS_fix = printGPGGA((char*)g_info.GPGGA, GPS_formatted);   //printGPGGA returns TRUE if the GPGGA string returned confirms a GPS fix.
+  // }
+  // LGPS.powerOff();
 }
 
 boolean printGPGGA(char* str, char* GPS_formatted)
@@ -88,35 +92,38 @@ boolean printGPGGA(char* str, char* GPS_formatted)
     Serial.println(" satellite(s) found!");
     strcpy(SMScontent, "GPS fixed, satellites found: ");
     strcat(SMScontent, buf);
-    
+
     const int coord_size = 8;
-    char lat_fixed[coord_size],lon_fixed[coord_size];
-    convertCoords(latitude,longitude,lat_fixed, lon_fixed,coord_size);
-    
+    char lat_fixed[coord_size], lon_fixed[coord_size];
+    convertCoords(latitude, longitude, lat_fixed, lon_fixed, coord_size);
+
     Serial.print("Latitude:");
     Serial.println(lat_fixed);
     Serial.println(lat_direction);
-    
+
     Serial.print("Longitude:");
     Serial.println(lon_fixed);
     Serial.println(lon_direction);
-    
-    char gmaps_buffer[50];
-    sprintf(gmaps_buffer,"\nhttp://maps.google.com/?q=%s%s,%s%s",lat_fixed,lat_direction,lon_fixed,lon_direction);
-    
-    strcat(SMScontent,gmaps_buffer);
-    
+
+
+    sprintf(gmaps_buffer, "\nhttp://maps.google.com/?q=%s%s,%s%s", lat_fixed, lat_direction, lon_fixed, lon_direction);
+
+    strcat(SMScontent, gmaps_buffer);
+
     Serial.print("Time: ");
     Serial.println(time);
     strcat(SMScontent, "\nTime: ");
-    strcat(SMScontent,time);
-    
+    strcat(SMScontent, time);
+
     strcpy(GPS_formatted, SMScontent);
+    sprintf(gmaps_buffer, "{\"sensor\": \"gps\", \"status\": \"ok\", \"lat\":%s%s, \"log\":%s%s}", lat_fixed, lat_direction, lon_fixed, lon_direction);
     return true;
   }
   else
   {
-    Serial.println("GPS is not fixed yet.");
+    Serial.println("======>");
+    sprintf(gmaps_buffer, "{\"sensor\": \"gps\", \"status\": \"GPS_not_fixed\"}");
+    Serial.println(gmaps_buffer);
     return false;
   }
 }
@@ -124,40 +131,40 @@ boolean printGPGGA(char* str, char* GPS_formatted)
 void convertCoords(const char* latitude, const char* longitude, char* lat_return, char* lon_return, int buff_length)
 {
   char lat_deg[3];
-  strncpy(lat_deg,latitude,2);      //extract the first 2 chars to get the latitudinal degrees
+  strncpy(lat_deg, latitude, 2);    //extract the first 2 chars to get the latitudinal degrees
   lat_deg[2] = 0;                   //null terminate
-  
+
   char lon_deg[4];
-  strncpy(lon_deg,longitude,3);      //extract first 3 chars to get the longitudinal degrees
+  strncpy(lon_deg, longitude, 3);    //extract first 3 chars to get the longitudinal degrees
   lon_deg[3] = 0;                    //null terminate
-  
+
   int lat_deg_int = arrayToInt(lat_deg);    //convert to integer from char array
   int lon_deg_int = arrayToInt(lon_deg);
-  
+
   // must now take remainder/60
   //this is to convert from degrees-mins-secs to decimal degrees
   // so the coordinates are "google mappable"
-  
+
   float latitude_float = arrayToFloat(latitude);      //convert the entire degrees-mins-secs coordinates into a float - this is for easier manipulation later
   float longitude_float = arrayToFloat(longitude);
-  
-  latitude_float = latitude_float - (lat_deg_int*100);      //remove the degrees part of the coordinates - so we are left with only minutes-seconds part of the coordinates
-  longitude_float = longitude_float - (lon_deg_int*100);
-  
-  latitude_float /=60;                                    //convert minutes-seconds to decimal
-  longitude_float/=60;
-  
+
+  latitude_float = latitude_float - (lat_deg_int * 100);    //remove the degrees part of the coordinates - so we are left with only minutes-seconds part of the coordinates
+  longitude_float = longitude_float - (lon_deg_int * 100);
+
+  latitude_float /= 60;                                   //convert minutes-seconds to decimal
+  longitude_float /= 60;
+
   latitude_float += lat_deg_int;                          //add back on the degrees part, so it is decimal degrees
-  longitude_float+= lon_deg_int;
-  
-  snprintf(lat_return,buff_length,"%2.3f",latitude_float);    //format the coordinates nicey - no more than 3 decimal places
-  snprintf(lon_return,buff_length,"%3.3f",longitude_float);
+  longitude_float += lon_deg_int;
+
+  snprintf(lat_return, buff_length, "%2.3f", latitude_float); //format the coordinates nicey - no more than 3 decimal places
+  snprintf(lon_return, buff_length, "%3.3f", longitude_float);
 }
 
 int arrayToInt(const char* char_array)
 {
   int temp;
-  sscanf(char_array,"%d",&temp);
+  sscanf(char_array, "%d", &temp);
   return temp;
 }
 
@@ -172,14 +179,14 @@ const char *nextToken(const char* src, char* buf)
 {
   int i = 0;
   while (src[i] != 0 && src[i] != ',')
-  i++;
+    i++;
   if (buf)
   {
     strncpy(buf, src, i);
     buf[i] = 0;
   }
   if (src[i])
-  i++;
+    i++;
   return src + i;
 }
 
@@ -336,7 +343,7 @@ void setup() {
 
   Serial.begin(9600);
   LGPS.powerOn();
-  
+
   Serial.println("Serial set up");
   Serial.println("Connecting to AP");
   while (0 == LWiFi.connect(WIFI_AP, LWiFiLoginInfo(WIFI_AUTH, WIFI_PASSWORD))) {
@@ -350,9 +357,8 @@ void setup() {
   setup_with_appkey_and_devid(yunba_appkey, yunba_devid/*, &info*/);
 
   get_ip_pair(url, broker_addr, &port);
- // client.begin("192.168.2.136", port, net);
-
-   client.begin(broker_addr, port, net);
+//  client.begin("192.168.2.136", port, net);
+  client.begin(broker_addr, port, net);
 
   connect();
 }
@@ -380,22 +386,34 @@ void connect() {
   set_alias(yunba_devid);
 }
 
+void check_connect(uint32_t interval) {
+  if (millis() - lastMillis > interval) {
+    boolean st = client.connected();
+    if (st != netstatus) {
+      Serial.print("connect status:");
+      netstatus = st;
+      Serial.println(netstatus);
+    }
+
+    if (!st) {
+      connect();
+    }
+  }
+}
+
 void loop() {
   client.loop();
 
-  if (!client.connected()) {
-    connect();
-  }
-
+  check_connect(6000);
   // publish a message roughly every second.
   if (millis() - lastMillis > 20000) {
     lastMillis = millis();
-     char GPS_formatted[130]; 
-  getGPSData(g_info,GPS_formatted);
-  //  client.publish(yunba_topic, "world");
- //   client.publish2ToAlias("PC", "publish2");
+    char GPS_formatted[130];
+    getGPSData(g_info, GPS_formatted);
+    client.publish(yunba_topic, gmaps_buffer);
+
+    client.publish2ToAlias("PC", "publish2", opt_json);
     flash(pubLedPin);
-    Serial.print("publish one message\r\n");
   }
   delay(100);
 }

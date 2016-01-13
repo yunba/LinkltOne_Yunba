@@ -1,12 +1,3 @@
-// This example uses an Arduino Uno together with
-// a WiFi Shield to connect to shiftr.io.
-//
-// You can check on your device after a successful
-// connection here: https://shiftr.io/try.
-//
-// by Jo濠电姷鏁告慨鐢割敊閺嶎厼闂い鏍ㄧ矊缁躲倝鏌熼鍡嫹闁哄鐗犻弻銊╂偆閸屾稑顏� G闂傚倸鍊搁崐鐑芥嚄閸洖纾块柣銏㈩焾閻ょ偓绻濋棃娑卞剱闁稿﹤鐖奸弻娑㈡倷閹碱厼濡穕er
-// https://github.com/256dpi/arduino-mqtt
-
 #include "SPI.h"
 
 #include <LGPRS.h>
@@ -15,60 +6,38 @@
 #include <ArduinoJson.h>
 #include <LGPS.h>
 
-
-char *ssid = "yunba.io";
-char *pass = "Hiyunba2013";
-
+const int NewMsgLedPin = 13;
+const char yunba_appkey[] = "563c4afef085fc471efdf803";
+const char yunba_topic[] = "linkltone";
+const char yunba_devid[] = "linkltone_board2";
+const char *opt_json = "{\"time_to_live\":\"120\", \"qos\":\"2\"}";
 char client_id[56];
 char username[56];
 char password[56];
 char device_id[56];
-
-#define WIFI_AP "yunba.io" // provide your WIFI_AP name
-#define WIFI_PASSWORD "Hiyunba2013" //provide your WIFI password
-#define WIFI_AUTH LWIFI_WPA
-
-const int subLedPin = 10;
-const int pubLedPin = 13;
-
-const char yunba_appkey[] = "563c4afef085fc471efdf803";
-const char yunba_topic[] = "linkltone";
-const char yunba_devid[] = "linkltone_board2";
+char broker_addr[56];
+uint16_t port;
+gpsSentenceInfoStruct g_info;
+char gmaps_buffer[50];
+boolean netstatus = false;
+unsigned long lastMillis = 0;
 char url[56];
 
 LGPRSClient net;
 MQTTClient client;
-unsigned long lastMillis = 0;
-
 StaticJsonBuffer<200> jsonBuffer;
-
-char broker_addr[56];
-uint16_t port;
-
-gpsSentenceInfoStruct g_info;
-char gmaps_buffer[50];
-
-boolean netstatus = false;
-const char *opt_json = "{\"time_to_live\":\"120\", \"qos\":\"2\"}";
 
 void getGPSData(gpsSentenceInfoStruct &g_info, char* GPS_formatted)
 {
-  //  LGPS.powerOn();
   boolean GPS_fix = false;
-
-  // while (!GPS_fix)
-  // {
   LGPS.getData(&g_info);                                      //get the data from the GPS and store it in 'g_info'
-  //   Serial.println((char*)g_info.GPGGA);
-  //    Serial.println((char*)g_info.GPGSV);
+  Serial.println((char*)g_info.GPGGA);
+  Serial.println((char*)g_info.GPGSV);
   GPS_fix = printGPGGA((char*)g_info.GPGGA, GPS_formatted);   //printGPGGA returns TRUE if the GPGGA string returned confirms a GPS fix.
-  // }
-  // LGPS.powerOff();
 }
 
 boolean printGPGGA(char* str, char* GPS_formatted)
 {
-  char SMScontent[160];
   char latitude[20];
   char lat_direction[1];
   char longitude[20];
@@ -90,8 +59,6 @@ boolean printGPGGA(char* str, char* GPS_formatted)
     Serial.print("GPS is fixed:");
     Serial.print(atoi(buf));
     Serial.println(" satellite(s) found!");
-    strcpy(SMScontent, "GPS fixed, satellites found: ");
-    strcat(SMScontent, buf);
 
     const int coord_size = 8;
     char lat_fixed[coord_size], lon_fixed[coord_size];
@@ -105,18 +72,9 @@ boolean printGPGGA(char* str, char* GPS_formatted)
     Serial.println(lon_fixed);
     Serial.println(lon_direction);
 
-
-    sprintf(gmaps_buffer, "\nhttp://maps.google.com/?q=%s%s,%s%s", lat_fixed, lat_direction, lon_fixed, lon_direction);
-
-    strcat(SMScontent, gmaps_buffer);
-
     Serial.print("Time: ");
     Serial.println(time);
-    strcat(SMScontent, "\nTime: ");
-    strcat(SMScontent, time);
-
-    strcpy(GPS_formatted, SMScontent);
-    sprintf(gmaps_buffer, "{\"sensor\": \"gps\", \"status\": \"ok\", \"lat\":%s%s, \"log\":%s%s}", lat_fixed, lat_direction, lon_fixed, lon_direction);
+    sprintf(gmaps_buffer, "{\"sensor\": \"gps\", \"status\": \"ok\", \"lat\":\"%s%s\", \"log\":\"%s%s\"}", lat_fixed, lat_direction, lon_fixed, lon_direction);
     return true;
   }
   else
@@ -157,8 +115,9 @@ void convertCoords(const char* latitude, const char* longitude, char* lat_return
   latitude_float += lat_deg_int;                          //add back on the degrees part, so it is decimal degrees
   longitude_float += lon_deg_int;
 
-  snprintf(lat_return, buff_length, "%2.3f", latitude_float); //format the coordinates nicey - no more than 3 decimal places
-  snprintf(lon_return, buff_length, "%3.3f", longitude_float);
+  snprintf(lat_return, buff_length, "%2.6f", latitude_float); //format the coordinates nicey - no more than 3 decimal places
+  snprintf(lon_return, buff_length, "%3.6f", longitude_float);
+  Serial.println(longitude_float, 6);
 }
 
 int arrayToInt(const char* char_array)
@@ -190,10 +149,7 @@ const char *nextToken(const char* src, char* buf)
   return src + i;
 }
 
-
-
-bool get_ip_pair(const char *url, char *addr, uint16_t *port)
-{
+bool get_ip_pair(const char *url, char *addr, uint16_t *port) {
   char *p = strstr(url, "tcp://");
   if (p) {
     p += 6;
@@ -211,8 +167,7 @@ bool get_ip_pair(const char *url, char *addr, uint16_t *port)
   return false;
 }
 
-bool get_host_v2(const char *appkey, char *url)
-{
+bool get_host_v2(const char *appkey, char *url) {
   uint8_t buf[256];
   bool rc = false;
   LGPRSClient net_client;
@@ -262,8 +217,7 @@ exit:
   return rc;
 }
 
-bool setup_with_appkey_and_devid(const char* appkey, const char *deviceid/*, REG_info *info*/)
-{
+bool setup_with_appkey_and_devid(const char* appkey, const char *deviceid) {
   uint8_t buf[256];
   bool rc = false;
   LGPRSClient net_client;
@@ -324,53 +278,44 @@ bool setup_with_appkey_and_devid(const char* appkey, const char *deviceid/*, REG
   return rc;
 }
 
-void set_alias(const char *alias)
-{
+void set_alias(const char *alias) {
   client.publish(",yali", alias);
 }
 
-void publish_to_alias(const char *alias, char *message)
-{
+void publish_to_alias(const char *alias, char *message) {
   String topic = ",yta/" + String(alias);
   client.publish(topic, message);
 }
 
 void setup() {
-  pinMode(subLedPin, OUTPUT);
-  pinMode(pubLedPin, OUTPUT);
-  digitalWrite(subLedPin, LOW);
-  digitalWrite(pubLedPin, LOW);
+  pinMode(NewMsgLedPin, OUTPUT);
+  digitalWrite(NewMsgLedPin, LOW);
 
   Serial.begin(9600);
-  LGPS.powerOn();
-  
   Serial.println("Serial set up");
-  Serial.println("Connecting to AP");
+  Serial.println("Connecting to GPRS");
   while (!LGPRS.attachGPRS("3gnet", "", "")) {
     Serial.println(" . ");
     delay(1000);
   }
-  Serial.println("Connected to AP");
-
+  Serial.println("Connected to GPRS");
+  LGPS.powerOn();
   //TODO: if we can't get reg info and tick info
   get_host_v2(yunba_appkey, url);
   setup_with_appkey_and_devid(yunba_appkey, yunba_devid/*, &info*/);
 
   get_ip_pair(url, broker_addr, &port);
- // client.begin("192.168.2.136", port, net);
-
-   client.begin(broker_addr, port, net);
+  // client.begin("192.168.2.136", port, net);
+  client.begin(broker_addr, port, net);
 
   connect();
 }
 
-void flash(int ledPin)
-{
-  /* Flash LED three times. */
+void flash(int LedPin) {
   for (int i = 0; i < 3; i++) {
-    digitalWrite(ledPin, HIGH);
+    digitalWrite(LedPin, HIGH);
     delay(100);
-    digitalWrite(ledPin, LOW);
+    digitalWrite(LedPin, LOW);
     delay(100);
   }
 }
@@ -379,11 +324,11 @@ void connect() {
   //  Serial.print("\nconnecting...");
   while (!client.connect(client_id, username, password)) {
     Serial.print(".");
+    LGPRS.attachGPRS("3gnet", "", "");
   }
 
   Serial.println("\nconnected!");
   client.subscribe(yunba_topic);
-  // client.unsubscribe("/example");
   set_alias(yunba_devid);
 }
 
@@ -404,23 +349,20 @@ void check_connect(uint32_t interval) {
 
 void loop() {
   client.loop();
-
   check_connect(6000);
-  // publish a message roughly every second.
+
   if (millis() - lastMillis > 20000) {
     lastMillis = millis();
     char GPS_formatted[130];
     getGPSData(g_info, GPS_formatted);
     client.publish(yunba_topic, gmaps_buffer);
-
-    client.publish2ToAlias("PC", "publish2", opt_json);
-    flash(pubLedPin);
+    client.publish2ToAlias("PC", gmaps_buffer, opt_json);
   }
   delay(100);
 }
 
 void messageReceived(String topic, String payload, char * bytes, unsigned int length) {
-  flash(subLedPin);
+  flash(NewMsgLedPin);
   Serial.print("incoming: ");
   Serial.print(topic);
   Serial.print(" - ");
@@ -428,9 +370,8 @@ void messageReceived(String topic, String payload, char * bytes, unsigned int le
   Serial.println();
 }
 
-void extMessageReceived(EXTED_CMD cmd, int status, String payload, unsigned int length)
-{
-  flash(subLedPin);
+void extMessageReceived(EXTED_CMD cmd, int status, String payload, unsigned int length) {
+  flash(NewMsgLedPin);
   Serial.print("incoming ext message: ");
   Serial.print(cmd);
   Serial.print(" - ");

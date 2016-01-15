@@ -1,12 +1,3 @@
-// This example uses an Arduino Uno together with
-// a WiFi Shield to connect to shiftr.io.
-//
-// You can check on your device after a successful
-// connection here: https://shiftr.io/try.
-//
-// by Jo濠电姷鏁告慨鐢割敊閺嶎厼闂い鏍ㄧ矊缁躲倝鏌熼鍡嫹闁哄鐗犻弻銊╂偆閸屾稑顏� G闂傚倸鍊搁崐鐑芥嚄閸洖纾块柣銏㈩焾閻ょ偓绻濋棃娑卞剱闁稿﹤鐖奸弻娑㈡倷閹碱厼濡穕er
-// https://github.com/256dpi/arduino-mqtt
-
 #include "SPI.h"
 
 #include <LWiFi.h>
@@ -264,7 +255,4 @@ void extMessageReceived(EXTED_CMD cmd, int status, String payload, unsigned int 
   Serial.print(payload);
   Serial.println();
 }
-
-
-
 
